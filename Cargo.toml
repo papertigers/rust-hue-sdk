@@ -1,0 +1,6 @@
+[package]
+name = "hue-sdk"
+version = "0.1.0"
+authors = ["Mike Zeller <mike@mikezeller.net>"]
+
+[dependencies]
