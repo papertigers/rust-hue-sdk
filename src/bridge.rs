@@ -1,10 +1,16 @@
 use std;
+use std::io::Read;
 use std::time::Duration;
 use std::collections::HashSet;
+use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::net::UdpSocket;
 use std::str;
 
+use rustc_serialize::json;
+use hyper::Client;
+
+/// Returns a HashSet of hue bridge SocketAddr's
 pub fn discover() -> HashSet<SocketAddr> {
 
     let string_list = vec![
@@ -48,4 +54,38 @@ pub fn discover() -> HashSet<SocketAddr> {
     }
     
     bridges
+}
+
+/// Hue Bridge
+#[derive(Debug)]
+pub struct Bridge {
+    ip: Ipv4Addr,
+}
+
+impl Bridge {
+    /// Returns a hue bridge with the given ip
+    pub fn new(addr: Ipv4Addr) -> Bridge {
+        Bridge {
+            ip: addr,
+        }
+    }
+    
+    /// Attempt to register with the hue bridge
+    pub fn register(&self, name: &str) {
+        #[derive(RustcEncodable, RustcDecodable)]
+        struct Devicetype {
+            devicetype: String,
+        }
+
+        let client = Client::new();
+        let url = format!("http://{}/api", self.ip);
+        let payload = Devicetype { devicetype: name.to_owned() };
+        let body = json::encode(&payload).unwrap();
+
+        // TODO handle errors and return username
+        let mut response = client.post(&url).body(&body).send().unwrap();
+        let mut buf = String::new();
+        response.read_to_string(&mut buf).unwrap();
+        println!("{}", buf);
+    }
 }
