@@ -2,8 +2,8 @@ use std;
 use std::io::Read;
 use std::time::Duration;
 use std::collections::HashSet;
+use std::net::IpAddr;
 use std::net::Ipv4Addr;
-use std::net::SocketAddr;
 use std::net::UdpSocket;
 use std::str;
 
@@ -11,7 +11,7 @@ use rustc_serialize::json;
 use hyper::Client;
 
 /// Returns a HashSet of hue bridge SocketAddr's
-pub fn discover() -> HashSet<SocketAddr> {
+pub fn discover() -> HashSet<IpAddr> {
 
     let string_list = vec![
         "M-SEARCH * HTTP/1.1",
@@ -45,7 +45,7 @@ pub fn discover() -> HashSet<SocketAddr> {
         let _ = str::from_utf8(&buf).and_then(|s| {
             // Hue docs say to use "IpBridge" over "hue-bridgeid"
             if s.contains("IpBridge") {
-                let bridge = sockread.1;
+                let bridge = sockread.1.ip();
                 bridges.insert(bridge);
             }
             Ok(s)
