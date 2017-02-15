@@ -2,34 +2,43 @@ use std;
 use std::io::Read;
 use std::time::Duration;
 use std::collections::HashSet;
+use std::net::SocketAddr;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
-use std::net::UdpSocket;
 use std::str;
+
+use futures::{Future, Stream};
+use tokio_core::reactor::Core;
+use tokio_core::net::UdpSocket;
 
 use rustc_serialize::json;
 use hyper::Client;
 
 /// Returns a HashSet of hue bridge SocketAddr's
 pub fn discover() -> HashSet<Ipv4Addr> {
+    //Storage for found hue bridges
+    let mut bridges = HashSet::new();
 
+    //Hue bridge discovery packet
     let string_list = vec![
         "M-SEARCH * HTTP/1.1",
         "HOST:239.255.255.250:1900",
         "MAN:\"ssdp:discover\"",
         "ST:ssdp:all",
         "MX:1"
-            ];
+    ];
     let joined = string_list.join("\r\n");
 
-    let socket =
-        UdpSocket::bind("0.0.0.0:0").unwrap();
+    //Create event loop for async io to happen on
+    let mut core = Core::new().unwrap();
+    let handle = core.handle();
 
-    let two_second_timeout = Duration::new(2, 0);
-    let _ = socket.set_read_timeout(Some(two_second_timeout));
-    socket.send_to(joined.as_bytes(), "239.255.255.250:1900").unwrap();
+    let sockaddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
+    let socket = UdpSocket::bind(&sockaddr, &handle).unwrap();
 
-    let mut bridges = HashSet::new();
+    let msockaddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(239, 255, 255, 250)), 1900);
+    socket.send_to(joined.as_bytes(), &msockaddr).unwrap();
+    /*
     loop {
         let mut buf = [0;255];
         let sockread = match socket.recv_from(&mut buf) {
@@ -52,6 +61,7 @@ pub fn discover() -> HashSet<Ipv4Addr> {
             Ok(s)
         });
     }
+    */
 
     bridges
 }
