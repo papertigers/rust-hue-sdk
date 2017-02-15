@@ -11,7 +11,7 @@ use rustc_serialize::json;
 use hyper::Client;
 
 /// Returns a HashSet of hue bridge SocketAddr's
-pub fn discover() -> HashSet<IpAddr> {
+pub fn discover() -> HashSet<Ipv4Addr> {
 
     let string_list = vec![
         "M-SEARCH * HTTP/1.1",
@@ -45,8 +45,9 @@ pub fn discover() -> HashSet<IpAddr> {
         let _ = str::from_utf8(&buf).and_then(|s| {
             // Hue docs say to use "IpBridge" over "hue-bridgeid"
             if s.contains("IpBridge") {
-                let bridge = sockread.1.ip();
-                bridges.insert(bridge);
+                if let IpAddr::V4(addr) = sockread.1.ip() {
+                    bridges.insert(addr);
+                }
             }
             Ok(s)
         });
