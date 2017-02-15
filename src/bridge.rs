@@ -25,8 +25,8 @@ pub fn discover() -> HashSet<Ipv4Addr> {
     let socket =
         UdpSocket::bind("0.0.0.0:0").unwrap();
 
-    let five_second_timeout = Duration::new(5, 0);
-    let _ = socket.set_read_timeout(Some(five_second_timeout));
+    let two_second_timeout = Duration::new(2, 0);
+    let _ = socket.set_read_timeout(Some(two_second_timeout));
     socket.send_to(joined.as_bytes(), "239.255.255.250:1900").unwrap();
 
     let mut bridges = HashSet::new();
