@@ -36,32 +36,26 @@ pub fn discover() -> HashSet<Ipv4Addr> {
     let sockaddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
     let socket = UdpSocket::bind(&sockaddr, &handle).unwrap();
 
+    let mut buf = vec![0; 255];;
     let msockaddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(239, 255, 255, 250)), 1900);
-    socket.send_to(joined.as_bytes(), &msockaddr).unwrap();
-    /*
-    loop {
-        let mut buf = [0;255];
-        let sockread = match socket.recv_from(&mut buf) {
-            Ok(val) => val,
-            Err(e) => {
-                match e.kind() {
-                    // a timeout on unix is considered a WouldBlock
-                    std::io::ErrorKind::WouldBlock => break,
-                    _ => panic!(e),
-                }
-            }
-        };
-        let _ = str::from_utf8(&buf).and_then(|s| {
+    let sendfuture = socket.send_dgram(joined.as_bytes(), msockaddr).and_then(|socket| {
+        print!("finished sending\n");
+        let testfuture = socket.0.recv_dgram(&mut buf).map(|x| {
+            print!("{:?}", str::from_utf8(&x.1));
+            let _ = str::from_utf8(&x.1).and_then(|s| {
             // Hue docs say to use "IpBridge" over "hue-bridgeid"
             if s.contains("IpBridge") {
-                if let IpAddr::V4(addr) = sockread.1.ip() {
-                    bridges.insert(addr);
+                if let IpAddr::V4(addr) = x.3.ip() {
+                    print!("Addr: {}", addr);
                 }
             }
             Ok(s)
+            });
         });
-    }
-    */
+        testfuture
+    });
+
+    core.run(sendfuture);
 
     bridges
 }
