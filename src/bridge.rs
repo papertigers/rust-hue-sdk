@@ -1,3 +1,5 @@
+extern crate serde_json;
+
 use std;
 use std::io::Read;
 use std::time::Duration;
@@ -7,7 +9,6 @@ use std::net::Ipv4Addr;
 use std::net::UdpSocket;
 use std::str;
 
-use rustc_serialize::json;
 use hyper::Client;
 
 /// Returns a HashSet of hue bridge SocketAddr's
@@ -72,7 +73,7 @@ impl Bridge {
 
     /// Attempt to register with the hue bridge
     pub fn register(&self, name: &str) {
-        #[derive(RustcEncodable, RustcDecodable)]
+        #[derive(Debug, Serialize, Deserialize)]
         struct Devicetype {
             devicetype: String,
         }
@@ -80,7 +81,7 @@ impl Bridge {
         let client = Client::new();
         let url = format!("http://{}/api", self.ip);
         let payload = Devicetype { devicetype: name.to_owned() };
-        let body = json::encode(&payload).unwrap();
+	let body = serde_json::to_string(&payload).unwrap();
 
         // TODO handle errors and return username
         let mut response = client.post(&url).body(&body).send().unwrap();
