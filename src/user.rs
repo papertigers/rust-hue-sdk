@@ -5,10 +5,10 @@ pub struct User {
 }
 
 impl User {
-    /// Returns a hue bridge with the given ip
-    pub fn new(username: String) -> User {
+    /// Returns a hue User 
+    pub fn new(uname: &str) -> User {
         User {
-            username: username,
+            username: uname.to_owned(),
         }
     }
 }
