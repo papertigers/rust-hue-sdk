@@ -1,7 +1,7 @@
 extern crate serde_json;
 
 use std;
-use std::io::Read;
+use std::io::Result as IoResult;
 use std::time::Duration;
 use std::collections::HashSet;
 use std::net::IpAddr;
@@ -10,9 +10,14 @@ use std::net::UdpSocket;
 use std::str;
 
 use hyper::Client;
+use serde_json::Value;
+
+use user::User;
+use utils;
+use error::Result;
 
 /// Returns a HashSet of hue bridge SocketAddr's
-pub fn discover() -> HashSet<Ipv4Addr> {
+pub fn discover() -> IoResult<HashSet<Ipv4Addr>> {
 
     let string_list = vec![
         "M-SEARCH * HTTP/1.1",
@@ -20,15 +25,15 @@ pub fn discover() -> HashSet<Ipv4Addr> {
         "MAN:\"ssdp:discover\"",
         "ST:ssdp:all",
         "MX:1"
-            ];
+    ];
     let joined = string_list.join("\r\n");
 
     let socket =
-        UdpSocket::bind("0.0.0.0:0").unwrap();
+        UdpSocket::bind("0.0.0.0:0")?;
 
     let two_second_timeout = Duration::new(2, 0);
     let _ = socket.set_read_timeout(Some(two_second_timeout));
-    socket.send_to(joined.as_bytes(), "239.255.255.250:1900").unwrap();
+    socket.send_to(joined.as_bytes(), "239.255.255.250:1900")?;
 
     let mut bridges = HashSet::new();
     loop {
@@ -54,7 +59,7 @@ pub fn discover() -> HashSet<Ipv4Addr> {
         });
     }
 
-    bridges
+    Ok(bridges)
 }
 
 /// Hue Bridge
@@ -72,7 +77,7 @@ impl Bridge {
     }
 
     /// Attempt to register with the hue bridge
-    pub fn register(&self, name: &str) {
+    pub fn register(&self, name: &str) -> Result<User>{
         #[derive(Debug, Serialize, Deserialize)]
         struct Devicetype {
             devicetype: String,
@@ -81,12 +86,13 @@ impl Bridge {
         let client = Client::new();
         let url = format!("http://{}/api", self.ip);
         let payload = Devicetype { devicetype: name.to_owned() };
-	let body = serde_json::to_string(&payload).unwrap();
+        let body = serde_json::to_string(&payload)?;
 
-        // TODO handle errors and return username
-        let mut response = client.post(&url).body(&body).send().unwrap();
-        let mut buf = String::new();
-        response.read_to_string(&mut buf).unwrap();
-        println!("{}", buf);
+        let response = client.post(&url).body(&body).send()?;
+        let json: Value = serde_json::from_reader(response)?;
+        utils::hue_result(json).and_then(|json| {
+            let user: User = serde_json::from_value(json)?;
+            Ok(user)
+        })
     }
 }
