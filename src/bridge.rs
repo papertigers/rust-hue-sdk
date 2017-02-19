@@ -1,13 +1,13 @@
 extern crate serde_json;
 
 use std;
+use std::str;
 use std::io::Result as IoResult;
 use std::time::Duration;
-use std::collections::HashSet;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::UdpSocket;
-use std::str;
+use std::collections::HashSet;
 
 use hyper::Client;
 use serde_json::Value;
@@ -66,13 +66,18 @@ pub fn discover() -> IoResult<HashSet<Ipv4Addr>> {
 #[derive(Debug)]
 pub struct Bridge {
     ip: Ipv4Addr,
+    client: Client,
 }
 
 impl Bridge {
     /// Returns a hue bridge with the given ip
     pub fn new(addr: Ipv4Addr) -> Bridge {
+        let mut client = Client::new();
+        client.set_read_timeout(Some(Duration::new(2,0)));
+        client.set_write_timeout(Some(Duration::new(2,0)));
         Bridge {
             ip: addr,
+            client: client,
         }
     }
 
@@ -83,12 +88,11 @@ impl Bridge {
             devicetype: String,
         }
 
-        let client = Client::new();
         let url = format!("http://{}/api", self.ip);
         let payload = Devicetype { devicetype: name.to_owned() };
         let body = serde_json::to_string(&payload)?;
 
-        let response = client.post(&url).body(&body).send()?;
+        let response = self.client.post(&url).body(&body).send()?;
         let json: Value = serde_json::from_reader(response)?;
         utils::hue_result(json).and_then(|json| {
             let user: User = serde_json::from_value(json)?;
